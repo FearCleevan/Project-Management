@@ -48,9 +48,42 @@ export function createProjectModel(payload) {
       ...DEFAULT_PROJECT_TOGGLES,
       ...payload.toggles,
     }),
-    invitedMemberIds: Array.isArray(payload.invitedMemberIds) ? payload.invitedMemberIds : [],
+    members: Array.isArray(payload.members) ? payload.members : [],
+    invited: Array.isArray(payload.invited) ? payload.invited : [],
     createdAt: now,
     updatedAt: now,
     createdBy: payload.createdBy || '',
+  }
+}
+
+export function normalizeProjectModel(project) {
+  const members = Array.isArray(project?.members) ? project.members : []
+  const invitedFromLegacy = Array.isArray(project?.invitedMemberIds) ? project.invitedMemberIds : []
+  const invited = Array.isArray(project?.invited) ? project.invited : invitedFromLegacy
+
+  return {
+    ...project,
+    id: toSlug(project?.id),
+    name: project?.name?.trim() || '',
+    description: project?.description?.trim() || '',
+    coverPhoto: project?.coverPhoto || '',
+    visibility:
+      project?.visibility === PROJECT_VISIBILITY.PUBLIC
+        ? PROJECT_VISIBILITY.PUBLIC
+        : PROJECT_VISIBILITY.PRIVATE,
+    toggles: normalizeToggles({
+      ...DEFAULT_PROJECT_TOGGLES,
+      ...project?.toggles,
+    }),
+    members: members
+      .filter((member) => member?.userId)
+      .map((member) => ({
+        userId: member.userId,
+        roleInProject: member.roleInProject === 'ADMIN' ? 'ADMIN' : 'MEMBER',
+      })),
+    invited: invited.filter(Boolean),
+    createdAt: project?.createdAt || new Date().toISOString(),
+    updatedAt: project?.updatedAt || new Date().toISOString(),
+    createdBy: project?.createdBy || '',
   }
 }

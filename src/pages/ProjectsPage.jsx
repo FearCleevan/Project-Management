@@ -37,7 +37,13 @@ export default function ProjectsPage() {
       return true
     }
 
-    return Array.isArray(project.invitedMemberIds) && project.invitedMemberIds.includes(currentUser?.id)
+    const isMember = Array.isArray(project.members)
+      && project.members.some((member) => member.userId === currentUser?.id)
+    if (isMember) {
+      return true
+    }
+
+    return Array.isArray(project.invited) && project.invited.includes(currentUser?.id)
   })
 
   const canCreateProject = canAccessProjectSettings(currentUser)

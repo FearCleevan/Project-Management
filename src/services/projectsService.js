@@ -1,6 +1,7 @@
 import { repo } from './repo'
 import {
   createProjectModel,
+  normalizeProjectModel,
   normalizeToggles,
   PROJECT_VISIBILITY,
   toSlug,
@@ -9,15 +10,16 @@ import {
 const PROJECTS_KEY = 'pm_projects_v1'
 
 function listProjects() {
-  return repo.list(PROJECTS_KEY)
+  return repo.list(PROJECTS_KEY).map(normalizeProjectModel)
 }
 
 function getProject(id) {
-  return repo.getById(PROJECTS_KEY, id)
+  const raw = repo.getById(PROJECTS_KEY, id)
+  return raw ? normalizeProjectModel(raw) : null
 }
 
 function createProject(payload) {
-  const nextProject = createProjectModel(payload)
+  const nextProject = normalizeProjectModel(createProjectModel(payload))
 
   if (!nextProject.id) {
     throw new Error('Project ID is required.')
@@ -53,7 +55,7 @@ function updateProject(id, patch) {
     }
   }
 
-  const updated = {
+  const updated = normalizeProjectModel({
     ...current,
     ...patch,
     id: nextId,
@@ -65,7 +67,7 @@ function updateProject(id, patch) {
           : current.visibility,
     toggles: patch.toggles ? normalizeToggles({ ...current.toggles, ...patch.toggles }) : current.toggles,
     updatedAt: new Date().toISOString(),
-  }
+  })
 
   if (!updated.name?.trim()) {
     throw new Error('Project name is required.')

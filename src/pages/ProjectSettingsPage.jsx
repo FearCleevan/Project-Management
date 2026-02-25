@@ -4,6 +4,7 @@ import { toast } from 'react-toastify'
 import styles from './ProjectSettingsPage.module.css'
 import { useAuthStore } from '../stores/authStore'
 import { useProjectsStore } from '../stores/projectsStore'
+import { useUsersStore } from '../stores/usersStore'
 import { canAccessProjectSettings } from '../utils/permissions'
 import { toSlug } from '../utils/models'
 
@@ -31,7 +32,12 @@ export default function ProjectSettingsPage() {
   const projects = useProjectsStore((state) => state.projects)
   const loadProjects = useProjectsStore((state) => state.loadProjects)
   const updateProject = useProjectsStore((state) => state.updateProject)
+  const inviteProjectMember = useProjectsStore((state) => state.inviteProjectMember)
+  const removeProjectMember = useProjectsStore((state) => state.removeProjectMember)
+  const joinPublicProject = useProjectsStore((state) => state.joinPublicProject)
+  const users = useUsersStore((state) => state.listUsers())
   const [form, setForm] = useState(EMPTY_FORM)
+  const [inviteUserId, setInviteUserId] = useState('')
 
   const canEdit = canAccessProjectSettings(currentUser)
 
@@ -39,26 +45,7 @@ export default function ProjectSettingsPage() {
     loadProjects()
   }, [loadProjects])
 
-  const project = useMemo(() => {
-    const candidate = projects.find((item) => item.id === projectId)
-    if (!candidate) {
-      return null
-    }
-
-    if (candidate.visibility === 'PUBLIC') {
-      return candidate
-    }
-
-    if (candidate.createdBy === currentUser?.id) {
-      return candidate
-    }
-
-    if (Array.isArray(candidate.invitedMemberIds) && candidate.invitedMemberIds.includes(currentUser?.id)) {
-      return candidate
-    }
-
-    return null
-  }, [currentUser?.id, projectId, projects])
+  const project = useMemo(() => projects.find((item) => item.id === projectId) || null, [projectId, projects])
 
   useEffect(() => {
     if (!project) {
@@ -139,6 +126,77 @@ export default function ProjectSettingsPage() {
     }
   }
 
+  function handleInviteUser(event) {
+    event.preventDefault()
+    if (!inviteUserId || !project) {
+      return
+    }
+
+    try {
+      inviteProjectMember({
+        actor: currentUser,
+        projectId: project.id,
+        userId: inviteUserId,
+      })
+      toast.success('User invited to project.')
+      setInviteUserId('')
+    } catch (error) {
+      toast.error(error.message || 'Unable to invite user.')
+    }
+  }
+
+  function handleRemoveUser(userId) {
+    if (!project) {
+      return
+    }
+
+    try {
+      removeProjectMember({
+        actor: currentUser,
+        projectId: project.id,
+        userId,
+      })
+      toast.success('Member removed from project.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to remove user.')
+    }
+  }
+
+  function handleJoinPublicProject() {
+    if (!project) {
+      return
+    }
+
+    try {
+      joinPublicProject({
+        actor: currentUser,
+        projectId: project.id,
+      })
+      toast.success('Joined project successfully.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to join project.')
+    }
+  }
+
+  const isMember = Boolean(project && (
+    project.createdBy === currentUser?.id
+    || (project.members || []).some((member) => member.userId === currentUser?.id)
+  ))
+
+  const availableInvitees = users.filter((user) => {
+    if (!project) {
+      return false
+    }
+
+    if (user.id === project.createdBy) {
+      return false
+    }
+
+    const isProjectMember = (project.members || []).some((member) => member.userId === user.id)
+    const isInvited = (project.invited || []).includes(user.id)
+    return !isProjectMember && !isInvited
+  })
+
   if (!project) {
     return (
       <section className={styles.page}>
@@ -158,6 +216,15 @@ export default function ProjectSettingsPage() {
             : 'Read-only view. Only admins can edit project settings.'}
         </p>
       </header>
+
+      {project.visibility === 'PUBLIC' && !isMember && (
+        <div className={styles.joinBanner}>
+          <p>This project is public. Join to become a member.</p>
+          <button className={styles.primaryButton} type="button" onClick={handleJoinPublicProject}>
+            Join Project
+          </button>
+        </div>
+      )}
 
       <form className={styles.form} onSubmit={handleSave}>
         <div className={styles.formGrid}>
@@ -300,6 +367,85 @@ export default function ProjectSettingsPage() {
           </div>
         )}
       </form>
+
+      {canEdit && (
+        <section className={styles.membersCard}>
+          <h2 className={styles.membersTitle}>Members</h2>
+
+          <form className={styles.inviteForm} onSubmit={handleInviteUser}>
+            <select
+              className={styles.select}
+              value={inviteUserId}
+              onChange={(event) => setInviteUserId(event.target.value)}
+            >
+              <option value="">Select user to invite</option>
+              {availableInvitees.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {`${user.name} (${user.username})`}
+                </option>
+              ))}
+            </select>
+            <button className={styles.secondaryButton} type="submit" disabled={!inviteUserId}>
+              Invite User
+            </button>
+          </form>
+
+          <div className={styles.membersGrid}>
+            <article className={styles.membersList}>
+              <h3>Active Members</h3>
+              <ul>
+                <li>
+                  <span>Project Creator</span>
+                  <strong>{users.find((user) => user.id === project.createdBy)?.name || project.createdBy}</strong>
+                </li>
+                {(project.members || []).map((member) => {
+                  const user = users.find((item) => item.id === member.userId)
+                  return (
+                    <li key={member.userId}>
+                      <span>{user?.name || member.userId}</span>
+                      <div className={styles.memberActions}>
+                        <em>{member.roleInProject}</em>
+                        <button
+                          type="button"
+                          className={styles.removeButton}
+                          onClick={() => handleRemoveUser(member.userId)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </article>
+
+            <article className={styles.membersList}>
+              <h3>Invited Users</h3>
+              <ul>
+                {(project.invited || []).map((userId) => {
+                  const user = users.find((item) => item.id === userId)
+                  return (
+                    <li key={userId}>
+                      <span>{user?.name || userId}</span>
+                      <div className={styles.memberActions}>
+                        <em>Invited</em>
+                        <button
+                          type="button"
+                          className={styles.removeButton}
+                          onClick={() => handleRemoveUser(userId)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+                {(project.invited || []).length === 0 && <li>No pending invites.</li>}
+              </ul>
+            </article>
+          </div>
+        </section>
+      )}
     </section>
   )
 }

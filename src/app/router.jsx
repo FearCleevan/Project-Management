@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './AppLayout'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
+import ProjectAccessRoute from './ProjectAccessRoute'
 import LoginPage from '../pages/LoginPage'
 import ProjectsPage from '../pages/ProjectsPage'
 import ProjectCreatePage from '../pages/ProjectCreatePage'
@@ -40,35 +41,19 @@ export function AppRouter() {
             </RoleRoute>
           }
         />
-        <Route
-          path="/projects/:projectId"
-          element={<ProjectRootRedirect />}
-        />
-        <Route path="/projects/:projectId/board" element={<ProjectBoardPage />} />
-        <Route path="/projects/:projectId/list" element={<ProjectListPage />} />
-        <Route
-          path="/projects/:projectId/calendar"
-          element={<ProjectCalendarPage />}
-        />
-        <Route
-          path="/projects/:projectId/timeline"
-          element={<ProjectTimelinePage />}
-        />
-        <Route
-          path="/projects/:projectId/workitems/:workItemId"
-          element={<WorkItemDetailPage />}
-        />
-        <Route
-          path="/projects/:projectId/settings"
-          element={<ProjectSettingsPage />}
-        />
-        <Route path="/projects/:projectId/pages" element={<ProjectPagesPage />} />
-        <Route path="/projects/:projectId/intake" element={<ProjectIntakePage />} />
-        <Route
-          path="/projects/:projectId/modules"
-          element={<ProjectModulesPage />}
-        />
-        <Route path="/projects/:projectId/cycles" element={<ProjectCyclesPage />} />
+        <Route path="/projects/:projectId" element={<ProjectAccessRoute />}>
+          <Route index element={<ProjectRootRedirect />} />
+          <Route path="board" element={<ProjectBoardPage />} />
+          <Route path="list" element={<ProjectListPage />} />
+          <Route path="calendar" element={<ProjectCalendarPage />} />
+          <Route path="timeline" element={<ProjectTimelinePage />} />
+          <Route path="workitems/:workItemId" element={<WorkItemDetailPage />} />
+          <Route path="settings" element={<ProjectSettingsPage />} />
+          <Route path="pages" element={<ProjectPagesPage />} />
+          <Route path="intake" element={<ProjectIntakePage />} />
+          <Route path="modules" element={<ProjectModulesPage />} />
+          <Route path="cycles" element={<ProjectCyclesPage />} />
+        </Route>
         <Route
           path="/admin/users"
           element={
