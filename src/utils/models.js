@@ -3,6 +3,21 @@ export const PROJECT_VISIBILITY = {
   PUBLIC: 'PUBLIC',
 }
 
+export const WORK_ITEM_PRIORITIES = {
+  NONE: 'NONE',
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT',
+}
+
+export const ACTIVITY_TYPES = {
+  COMMENT: 'COMMENT',
+  FIELD_CHANGE: 'FIELD_CHANGE',
+  STATUS_CHANGE: 'STATUS_CHANGE',
+  ATTACHMENT_ADDED: 'ATTACHMENT_ADDED',
+}
+
 export const DEFAULT_PROJECT_TOGGLES = {
   cycles: true,
   modules: true,
@@ -85,5 +100,102 @@ export function normalizeProjectModel(project) {
     createdAt: project?.createdAt || new Date().toISOString(),
     updatedAt: project?.updatedAt || new Date().toISOString(),
     createdBy: project?.createdBy || '',
+  }
+}
+
+function createWorkItemId(projectId) {
+  return `${projectId || 'ticket'}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
+}
+
+function normalizePriority(priority) {
+  if (Object.values(WORK_ITEM_PRIORITIES).includes(priority)) {
+    return priority
+  }
+
+  return WORK_ITEM_PRIORITIES.NONE
+}
+
+function normalizeAttachments(attachments) {
+  return (Array.isArray(attachments) ? attachments : [])
+    .filter((item) => item?.name && item?.dataUrl)
+    .map((item) => ({
+      name: item.name,
+      type: item.type || 'application/octet-stream',
+      dataUrl: item.dataUrl,
+      createdAt: item.createdAt || new Date().toISOString(),
+      createdBy: item.createdBy || '',
+    }))
+}
+
+function normalizeActivities(activities) {
+  return (Array.isArray(activities) ? activities : [])
+    .filter((item) => item?.type)
+    .map((item) => ({
+      id: item.id || `act_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+      type: item.type,
+      message: item.message || '',
+      html: item.html || '',
+      createdAt: item.createdAt || new Date().toISOString(),
+      createdBy: item.createdBy || '',
+    }))
+}
+
+export function createActivity(payload) {
+  return {
+    id: payload.id || `act_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    type: payload.type,
+    message: payload.message || '',
+    html: payload.html || '',
+    createdAt: payload.createdAt || new Date().toISOString(),
+    createdBy: payload.createdBy || '',
+  }
+}
+
+export function createWorkItemModel(payload) {
+  const now = new Date().toISOString()
+
+  return {
+    id: payload.id || createWorkItemId(payload.projectId),
+    projectId: payload.projectId || '',
+    title: payload.title?.trim() || '',
+    descriptionHtml: payload.descriptionHtml || '',
+    state: payload.state || 'Todo',
+    priority: normalizePriority(payload.priority),
+    labels: Array.isArray(payload.labels) ? payload.labels : [],
+    assigneeId: payload.assigneeId || null,
+    startDate: payload.startDate || null,
+    dueDate: payload.dueDate || null,
+    estimate: typeof payload.estimate === 'number' ? payload.estimate : null,
+    moduleId: payload.moduleId || null,
+    attachments: normalizeAttachments(payload.attachments),
+    subItemIds: Array.isArray(payload.subItemIds) ? payload.subItemIds : [],
+    activities: normalizeActivities(payload.activities),
+    createdBy: payload.createdBy || '',
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+export function normalizeWorkItemModel(item) {
+  return {
+    ...item,
+    id: item?.id || createWorkItemId(item?.projectId),
+    projectId: item?.projectId || '',
+    title: item?.title?.trim() || '',
+    descriptionHtml: item?.descriptionHtml || '',
+    state: item?.state || 'Todo',
+    priority: normalizePriority(item?.priority),
+    labels: Array.isArray(item?.labels) ? item.labels : [],
+    assigneeId: item?.assigneeId || null,
+    startDate: item?.startDate || null,
+    dueDate: item?.dueDate || null,
+    estimate: typeof item?.estimate === 'number' ? item.estimate : null,
+    moduleId: item?.moduleId || null,
+    attachments: normalizeAttachments(item?.attachments),
+    subItemIds: Array.isArray(item?.subItemIds) ? item.subItemIds : [],
+    activities: normalizeActivities(item?.activities),
+    createdBy: item?.createdBy || '',
+    createdAt: item?.createdAt || new Date().toISOString(),
+    updatedAt: item?.updatedAt || new Date().toISOString(),
   }
 }

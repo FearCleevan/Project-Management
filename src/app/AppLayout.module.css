@@ -150,13 +150,17 @@
   border: 1px solid transparent;
   border-radius: 0.55rem;
   color: var(--color-on-accent);
-  cursor: not-allowed;
+  cursor: pointer;
   display: inline-flex;
   font-size: 0.85rem;
   font-weight: 600;
   gap: 0.35rem;
-  opacity: 0.75;
   padding: 0.45rem 0.7rem;
+}
+
+.newTicketButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
 }
 
 .logoutButton {
@@ -181,6 +185,74 @@
   padding: 1.25rem;
 }
 
+.modalOverlay {
+  align-items: center;
+  background: rgba(15, 19, 26, 0.5);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 30;
+}
+
+.modal {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 0.8rem;
+  max-width: 760px;
+  padding: 1rem;
+  width: 100%;
+}
+
+.modalHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+}
+
+.modalTitle {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.ticketForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.ticketGrid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ticketLabel {
+  color: var(--color-muted-text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  gap: 0.35rem;
+}
+
+.ticketInput {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  color: var(--color-text);
+  font: inherit;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
@@ -189,5 +261,9 @@
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .ticketGrid {
+    grid-template-columns: 1fr;
   }
 }
