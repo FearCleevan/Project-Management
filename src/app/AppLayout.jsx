@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { FiLogOut, FiMoon, FiPlus, FiSun } from 'react-icons/fi'
+import { FiCalendar, FiFlag, FiLogOut, FiMoon, FiPaperclip, FiPlus, FiSun, FiTag, FiUser, FiX } from 'react-icons/fi'
 import { useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import styles from './AppLayout.module.css'
@@ -42,19 +42,19 @@ export default function AppLayout() {
   const logout = useAuthStore((state) => state.logout)
   const users = useUsersStore((state) => state.listUsers())
   const createWorkItem = useWorkItemsStore((state) => state.create)
-  const descriptionEditorRef = useRef(null)
-  const imageInputRef = useRef(null)
   const attachmentInputRef = useRef(null)
   const canViewUserManagement = canManageUsers(currentUser)
   const canCreateTicket = inProjectRoute && canEditTicket(currentUser)
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
   const [newTicket, setNewTicket] = useState({
     title: '',
+    descriptionHtml: '',
     state: 'Todo',
     priority: WORK_ITEM_PRIORITIES.NONE,
     assigneeId: '',
     startDate: '',
     dueDate: '',
+    attachments: [],
   })
 
   function handleLogout() {
@@ -91,74 +91,6 @@ export default function AppLayout() {
       reader.onerror = () => reject(new Error('Failed to read file.'))
       reader.readAsDataURL(file)
     })
-  }
-
-  function runEditorCommand(command, value = null) {
-    if (!descriptionEditorRef.current) {
-      return
-    }
-
-    descriptionEditorRef.current.focus()
-    document.execCommand(command, false, value)
-    setNewTicket((prev) => ({
-      ...prev,
-      descriptionHtml: descriptionEditorRef.current?.innerHTML || '',
-    }))
-  }
-
-  function handleFontSizeChange(size) {
-    const map = {
-      small: '2',
-      normal: '3',
-      large: '5',
-    }
-
-    runEditorCommand('fontSize', map[size] || '3')
-  }
-
-  function handleInsertImageUrl() {
-    const imageUrl = window.prompt('Enter image URL')
-    if (!imageUrl) {
-      return
-    }
-
-    runEditorCommand('insertImage', imageUrl)
-  }
-
-  async function handleUploadInlineImage(event) {
-    const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file.')
-      return
-    }
-
-    try {
-      const dataUrl = await readFileAsDataUrl(file)
-      runEditorCommand('insertImage', String(dataUrl))
-      setNewTicket((prev) => ({
-        ...prev,
-        attachments: [
-          ...prev.attachments,
-          {
-            name: file.name,
-            type: file.type,
-            dataUrl: String(dataUrl),
-            createdAt: new Date().toISOString(),
-            createdBy: currentUser?.id || '',
-          },
-        ],
-      }))
-    } catch (error) {
-      toast.error(error.message || 'Unable to upload image.')
-    } finally {
-      if (imageInputRef.current) {
-        imageInputRef.current.value = ''
-      }
-    }
   }
 
   async function handleUploadAttachment(event) {
@@ -334,11 +266,17 @@ export default function AppLayout() {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Create New Ticket</h2>
               <button type="button" className={styles.logoutButton} onClick={closeTicketModal}>
+                <FiX />
                 Close
               </button>
             </div>
 
             <form className={styles.ticketForm} onSubmit={handleCreateTicket}>
+              <div className={styles.projectBadge}>
+                <FiTag />
+                <span>{`Project: ${projectId}`}</span>
+              </div>
+
               <label className={styles.ticketLabel}>
                 Title
                 <input
@@ -352,98 +290,23 @@ export default function AppLayout() {
                 />
               </label>
 
-              <div className={styles.editorToolbar}>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('bold')}>
-                  B
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('italic')}>
-                  I
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('underline')}>
-                  U
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('strikeThrough')}>
-                  S
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyLeft')}>
-                  Left
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyCenter')}>
-                  Center
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyRight')}>
-                  Right
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('insertOrderedList')}>
-                  OL
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('insertUnorderedList')}>
-                  UL
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
-                  Quote
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('formatBlock', 'pre')}>
-                  Code
-                </button>
-                <select className={styles.ticketInput} onChange={(event) => handleFontSizeChange(event.target.value)} defaultValue="normal">
-                  <option value="small">Small</option>
-                  <option value="normal">Normal</option>
-                  <option value="large">Large</option>
-                </select>
-                <button type="button" className={styles.iconButton} onClick={handleInsertImageUrl}>
-                  Img URL
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => imageInputRef.current?.click()}>
-                  Img Upload
-                </button>
-                <button type="button" className={styles.iconButton} onClick={() => attachmentInputRef.current?.click()}>
-                  Attach
-                </button>
-              </div>
-              <div
-                ref={descriptionEditorRef}
-                className={styles.richEditor}
-                contentEditable
-                suppressContentEditableWarning
-                onInput={(event) =>
-                  setNewTicket((prev) => ({ ...prev, descriptionHtml: event.currentTarget.innerHTML }))
-                }
-              />
-              <input
-                ref={imageInputRef}
-                className={styles.hiddenFileInput}
-                type="file"
-                accept="image/*"
-                onChange={handleUploadInlineImage}
-              />
-              <input
-                ref={attachmentInputRef}
-                className={styles.hiddenFileInput}
-                type="file"
-                multiple
-                onChange={handleUploadAttachment}
-              />
-              {newTicket.attachments.length > 0 && (
-                <ul className={styles.attachmentList}>
-                  {newTicket.attachments.map((attachment, index) => (
-                    <li key={`${attachment.name}-${index}`} className={styles.attachmentItem}>
-                      <span>{attachment.name}</span>
-                      <button
-                        type="button"
-                        className={styles.iconButton}
-                        onClick={() => handleRemoveAttachment(index)}
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <label className={styles.ticketLabel}>
+                Description
+                <textarea
+                  className={styles.ticketTextarea}
+                  rows={5}
+                  value={newTicket.descriptionHtml}
+                  onChange={(event) =>
+                    setNewTicket((prev) => ({ ...prev, descriptionHtml: event.target.value }))
+                  }
+                  placeholder="Click to add description"
+                />
+              </label>
 
-              <div className={styles.ticketGrid}>
-                <label className={styles.ticketLabel}>
-                  State
+              <div className={styles.metaList}>
+                <label className={styles.metaItem}>
+                  <FiFlag />
+                  <span>Status</span>
                   <select
                     className={styles.ticketInput}
                     value={newTicket.state}
@@ -457,9 +320,9 @@ export default function AppLayout() {
                     <option value="Done">Done</option>
                   </select>
                 </label>
-
-                <label className={styles.ticketLabel}>
-                  Priority
+                <label className={styles.metaItem}>
+                  <FiFlag />
+                  <span>Priority</span>
                   <select
                     className={styles.ticketInput}
                     value={newTicket.priority}
@@ -474,9 +337,9 @@ export default function AppLayout() {
                     ))}
                   </select>
                 </label>
-
-                <label className={styles.ticketLabel}>
-                  Assignee
+                <label className={styles.metaItem}>
+                  <FiUser />
+                  <span>Assignee</span>
                   <select
                     className={styles.ticketInput}
                     value={newTicket.assigneeId}
@@ -492,9 +355,9 @@ export default function AppLayout() {
                     ))}
                   </select>
                 </label>
-
-                <label className={styles.ticketLabel}>
-                  Start Date
+                <label className={styles.metaItem}>
+                  <FiCalendar />
+                  <span>Start Date</span>
                   <input
                     className={styles.ticketInput}
                     type="date"
@@ -504,9 +367,9 @@ export default function AppLayout() {
                     }
                   />
                 </label>
-
-                <label className={styles.ticketLabel}>
-                  Deadline
+                <label className={styles.metaItem}>
+                  <FiCalendar />
+                  <span>Deadline</span>
                   <input
                     className={styles.ticketInput}
                     type="date"
@@ -516,7 +379,39 @@ export default function AppLayout() {
                     }
                   />
                 </label>
+                <button
+                  type="button"
+                  className={styles.metaButton}
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  <FiPaperclip />
+                  Add Attachment
+                </button>
               </div>
+
+              <input
+                ref={attachmentInputRef}
+                className={styles.hiddenFileInput}
+                type="file"
+                multiple
+                onChange={handleUploadAttachment}
+              />
+              {(newTicket.attachments || []).length > 0 && (
+                <ul className={styles.attachmentList}>
+                  {(newTicket.attachments || []).map((attachment, index) => (
+                    <li key={`${attachment.name}-${index}`} className={styles.attachmentItem}>
+                      <span>{attachment.name}</span>
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        onClick={() => handleRemoveAttachment(index)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.iconButton} onClick={closeTicketModal}>

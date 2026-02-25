@@ -2,6 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import {
+  FiAlignCenter,
+  FiAlignLeft,
+  FiAlignRight,
+  FiBold,
+  FiCode,
+  FiImage,
+  FiItalic,
+  FiList,
+  FiPaperclip,
+  FiType,
+  FiUnderline,
+} from 'react-icons/fi'
 import styles from './WorkItemDetailPage.module.css'
 import { useAuthStore } from '../stores/authStore'
 import { useProjectsStore } from '../stores/projectsStore'
@@ -35,6 +48,7 @@ export default function WorkItemDetailPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [commentHtml, setCommentHtml] = useState('')
   const [fontSize, setFontSize] = useState('normal')
+  const commentEditorRef = useRef(null)
   const imageInputRef = useRef(null)
   const attachmentInputRef = useRef(null)
 
@@ -232,16 +246,40 @@ export default function WorkItemDetailPage() {
     }
 
     try {
+      const plainText = commentHtml.replace(/<[^>]+>/g, '').trim()
+      if (!plainText) {
+        toast.error('Comment cannot be empty.')
+        return
+      }
+
       addComment({
         actor: currentUser,
         workItemId: item.id,
-        html: `<p>${commentHtml}</p>`,
+        html: commentHtml,
       })
       setCommentHtml('')
+      if (commentEditorRef.current) {
+        commentEditorRef.current.innerHTML = ''
+      }
       toast.success('Comment added.')
     } catch (error) {
       toast.error(error.message || 'Unable to add comment.')
     }
+  }
+
+  function runCommentCommand(command, value = null) {
+    if (!commentEditorRef.current || !canAddComment) {
+      return
+    }
+
+    commentEditorRef.current.focus()
+    document.execCommand(command, false, value)
+    setCommentHtml(commentEditorRef.current.innerHTML)
+  }
+
+  function handleCommentFontSizeChange(size) {
+    const map = { small: '2', normal: '3', large: '5' }
+    runCommentCommand('fontSize', map[size] || '3')
   }
 
   if (!item) {
@@ -366,46 +404,46 @@ export default function WorkItemDetailPage() {
           {canEditFields && (
             <div className={styles.toolbar}>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('bold')}>
-                B
+                <FiBold />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('italic')}>
-                I
+                <FiItalic />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('underline')}>
-                U
+                <FiUnderline />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('strikeThrough')}>
-                S
+                <span className={styles.toolbarGlyph}>S</span>
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyLeft')}>
-                Left
+                <FiAlignLeft />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyCenter')}>
-                Center
+                <FiAlignCenter />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyRight')}>
-                Right
+                <FiAlignRight />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('insertOrderedList')}>
-                OL
+                <span className={styles.toolbarGlyph}>1.</span>
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('insertUnorderedList')}>
-                UL
+                <FiList />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
-                Quote
+                <span className={styles.toolbarGlyph}>""</span>
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('formatBlock', 'pre')}>
-                Code
+                <FiCode />
               </button>
               <button type="button" className={styles.ghostButton} onClick={handleInsertImageUrl}>
-                Img URL
+                <FiImage />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => imageInputRef.current?.click()}>
-                Img Upload
+                <FiImage />
               </button>
               <button type="button" className={styles.ghostButton} onClick={() => attachmentInputRef.current?.click()}>
-                Attach
+                <FiPaperclip />
               </button>
               <select className={styles.input} value={fontSize} onChange={(event) => handleFontSizeChange(event.target.value)}>
                 <option value="small">Small</option>
@@ -435,9 +473,10 @@ export default function WorkItemDetailPage() {
             className={styles.editor}
             contentEditable={canEditFields}
             suppressContentEditableWarning
-            onInput={(event) =>
-              setForm((prev) => ({ ...prev, descriptionHtml: event.currentTarget.innerHTML }))
-            }
+            onInput={(event) => {
+              const html = event.currentTarget.innerHTML
+              setForm((prev) => ({ ...prev, descriptionHtml: html }))
+            }}
             dangerouslySetInnerHTML={{ __html: form.descriptionHtml || '<p></p>' }}
           />
           {form.attachments.length > 0 && (
@@ -474,17 +513,90 @@ export default function WorkItemDetailPage() {
       <section className={styles.card}>
         <h2 className={styles.sectionTitle}>Comments</h2>
         <form className={styles.commentForm} onSubmit={handleAddComment}>
-          <textarea
-            className={styles.textarea}
-            rows={3}
-            value={commentHtml}
-            onChange={(event) => setCommentHtml(event.target.value)}
-            placeholder="Write an update..."
-            disabled={!canAddComment}
+          <div className={styles.toolbarShell}>
+            <div className={styles.toolbarLeft}>
+              <div className={styles.toolbarGroup}>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('bold')}>
+                  <FiBold />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('italic')}>
+                  <FiItalic />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('underline')}>
+                  <FiUnderline />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('strikeThrough')}>
+                  <span className={styles.toolbarGlyph}>S</span>
+                </button>
+              </div>
+              <div className={styles.toolbarGroup}>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('justifyLeft')}>
+                  <FiAlignLeft />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('justifyCenter')}>
+                  <FiAlignCenter />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('justifyRight')}>
+                  <FiAlignRight />
+                </button>
+              </div>
+              <div className={styles.toolbarGroup}>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('insertOrderedList')}>
+                  <span className={styles.toolbarGlyph}>1.</span>
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('insertUnorderedList')}>
+                  <FiList />
+                </button>
+              </div>
+              <div className={styles.toolbarGroup}>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('formatBlock', 'blockquote')}>
+                  <span className={styles.toolbarGlyph}>""</span>
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => runCommentCommand('formatBlock', 'pre')}>
+                  <FiCode />
+                </button>
+              </div>
+              <div className={styles.toolbarGroup}>
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  onClick={() => {
+                    const url = window.prompt('Enter image URL')
+                    if (url) {
+                      runCommentCommand('insertImage', url)
+                    }
+                  }}
+                >
+                  <FiImage />
+                </button>
+                <button type="button" className={styles.ghostButton} onClick={() => attachmentInputRef.current?.click()}>
+                  <FiPaperclip />
+                </button>
+              </div>
+              <div className={styles.toolbarGroup}>
+                <FiType className={styles.toolbarIconMuted} />
+                <select className={styles.input} onChange={(event) => handleCommentFontSizeChange(event.target.value)} defaultValue="normal">
+                  <option value="small">Small</option>
+                  <option value="normal">Normal</option>
+                  <option value="large">Large</option>
+                </select>
+              </div>
+            </div>
+            <button className={styles.primaryButton} type="submit" disabled={!canAddComment}>
+              Comment
+            </button>
+          </div>
+          <div
+            ref={commentEditorRef}
+            className={styles.editor}
+            contentEditable={canAddComment}
+            suppressContentEditableWarning
+            onInput={(event) => {
+              const html = event.currentTarget.innerHTML
+              setCommentHtml(html)
+            }}
+            data-placeholder="Write an update..."
           />
-          <button className={styles.primaryButton} type="submit" disabled={!canAddComment}>
-            Add Comment
-          </button>
         </form>
       </section>
 

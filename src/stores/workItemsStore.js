@@ -41,7 +41,9 @@ export const useWorkItemsStore = create((set, get) => ({
       updatedBy: actor.id,
     })
     set((state) => ({
-      items: state.items.map((item) => (item.id === workItemId ? updated : item)),
+      items: state.items.some((item) => item.id === workItemId)
+        ? state.items.map((item) => (item.id === workItemId ? updated : item))
+        : [...state.items, updated],
     }))
     return updated
   },
@@ -56,7 +58,9 @@ export const useWorkItemsStore = create((set, get) => ({
 
     const updated = workItemsService.addComment(workItemId, html, actor.id)
     set((state) => ({
-      items: state.items.map((item) => (item.id === workItemId ? updated : item)),
+      items: state.items.some((item) => item.id === workItemId)
+        ? state.items.map((item) => (item.id === workItemId ? updated : item))
+        : [...state.items, updated],
     }))
     return updated
   },
@@ -67,7 +71,9 @@ export const useWorkItemsStore = create((set, get) => ({
 
     const updated = workItemsService.moveStatus(workItemId, newState, actor.id)
     set((state) => ({
-      items: state.items.map((item) => (item.id === workItemId ? updated : item)),
+      items: state.items.some((item) => item.id === workItemId)
+        ? state.items.map((item) => (item.id === workItemId ? updated : item))
+        : [...state.items, updated],
     }))
     return updated
   },

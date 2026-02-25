@@ -67,6 +67,11 @@
   max-width: 100%;
 }
 
+.editor:empty::before {
+  color: var(--color-muted-text);
+  content: attr(data-placeholder);
+}
+
 .textarea {
   resize: vertical;
 }
@@ -104,6 +109,36 @@
   gap: 0.35rem;
 }
 
+.toolbarShell {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.35rem;
+}
+
+.toolbarLeft {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.toolbarGroup {
+  align-items: center;
+  display: flex;
+  gap: 0.3rem;
+  border-right: 1px solid var(--color-border);
+  padding-right: 0.45rem;
+}
+
+.toolbarGroup:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
 .ghostButton {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -114,6 +149,22 @@
   font-weight: 600;
   min-height: 1.9rem;
   padding: 0 0.55rem;
+}
+
+.ghostButton svg {
+  height: 0.85rem;
+  width: 0.85rem;
+}
+
+.toolbarGlyph {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.toolbarIconMuted {
+  color: var(--color-muted-text);
+  height: 0.85rem;
+  width: 0.85rem;
 }
 
 .attachmentList {
