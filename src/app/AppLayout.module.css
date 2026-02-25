@@ -1,0 +1,193 @@
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.sidebar {
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 1.25rem;
+}
+
+.workspaceTitle {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.projectNavGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+}
+
+.navLink {
+  border-radius: 0.5rem;
+  color: var(--color-muted-text);
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 0.5rem 0.65rem;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.navLinkActive {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.contentArea {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  align-items: center;
+  background: var(--color-panel);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+}
+
+.layoutTabs {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tabLink {
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  color: var(--color-muted-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  text-decoration: none;
+}
+
+.tabLink:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.tabLinkActive {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.topbarActions {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.userChip {
+  align-items: flex-start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.userName {
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.userRole {
+  color: var(--color-muted-text);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.iconButton {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  color: var(--color-muted-text);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0.45rem 0.55rem;
+}
+
+.iconButton:hover {
+  color: var(--color-text);
+}
+
+.newTicketButton {
+  align-items: center;
+  background: var(--color-accent);
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  color: var(--color-on-accent);
+  cursor: not-allowed;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  opacity: 0.75;
+  padding: 0.45rem 0.7rem;
+}
+
+.logoutButton {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.logoutButton:hover {
+  background: var(--color-surface-hover);
+}
+
+.main {
+  padding: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+}
