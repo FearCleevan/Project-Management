@@ -15,6 +15,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { toast } from 'react-toastify'
+import { useParams } from 'react-router-dom'
 import styles from './ProjectBoardPage.module.css'
 import { useAuthStore } from '../stores/authStore'
 import { useProjectsStore } from '../stores/projectsStore'
@@ -34,6 +35,7 @@ export default function ProjectBoardPage() {
   const moveStatus = useWorkItemsStore((state) => state.moveStatus)
   const addComment = useWorkItemsStore((state) => state.addComment)
   const [selectedId, setSelectedId] = useState(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(true)
   const [commentHtml, setCommentHtml] = useState('')
   const commentEditorRef = useRef(null)
 
@@ -55,13 +57,13 @@ export default function ProjectBoardPage() {
   )
 
   useEffect(() => {
-    if (!selectedId && projectItems.length > 0) {
+    if (!selectedId && projectItems.length > 0 && isDetailOpen) {
       setSelectedId(projectItems[0].id)
     }
     if (selectedId && !projectItems.some((item) => item.id === selectedId)) {
       setSelectedId(projectItems[0]?.id || null)
     }
-  }, [projectItems, selectedId])
+  }, [isDetailOpen, projectItems, selectedId])
 
   const selectedItem = useMemo(
     () => projectItems.find((item) => item.id === selectedId) || null,
@@ -155,7 +157,18 @@ export default function ProjectBoardPage() {
       <div className={styles.listPane}>
         <header className={styles.header}>
           <h1>{`${project.name} / Work Items`}</h1>
-          <span>{projectItems.length}</span>
+          <div className={styles.headerRight}>
+            <span>{projectItems.length}</span>
+            {!isDetailOpen && selectedItem && (
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => setIsDetailOpen(true)}
+              >
+                Open
+              </button>
+            )}
+          </div>
         </header>
 
         {grouped.length === 0 && (
@@ -175,162 +188,198 @@ export default function ProjectBoardPage() {
                 <li
                   key={item.id}
                   className={`${styles.row} ${selectedId === item.id ? styles.rowActive : ''}`}
-                  onClick={() => setSelectedId(item.id)}
+                  onClick={() => {
+                    setSelectedId(item.id)
+                    setIsDetailOpen(true)
+                  }}
                 >
                   <span className={styles.rowId}>{item.id}</span>
                   <span className={styles.rowTitle}>{item.title}</span>
+                  <span className={styles.rowState}>{item.state}</span>
                   <span className={styles.rowMeta}>{item.priority}</span>
                   <span className={styles.rowMeta}>{resolveUser(item.assigneeId)}</span>
                 </li>
               ))}
+              <li className={styles.rowAction}>+ New work item</li>
             </ul>
           </section>
         ))}
       </div>
 
-      <aside className={styles.detailPane}>
-        {!selectedItem ? (
-          <div className={styles.empty}>
-            <p>Select a work item from the list.</p>
-          </div>
-        ) : (
-          <>
-            <div className={styles.detailHeader}>
-              <h3>{selectedItem.title}</h3>
-              <button type="button" className={styles.iconButton} onClick={() => setSelectedId(null)}>
-                <FiX />
-              </button>
+      {isDetailOpen && (
+        <>
+          <button
+            type="button"
+            className={styles.backdrop}
+            onClick={() => setIsDetailOpen(false)}
+            aria-label="Close side panel"
+          />
+          <aside className={styles.detailPane}>
+          {!selectedItem ? (
+            <div className={styles.empty}>
+              <p>Select a work item from the list.</p>
             </div>
-
-            <div className={styles.properties}>
-              <label className={styles.property}>
-                <span>State</span>
-                <select
-                  className={styles.input}
-                  value={selectedItem.state}
-                  onChange={(event) => handleMoveStatus(selectedItem.id, event.target.value)}
-                  disabled={!canMove}
-                >
-                  {statesOrder.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className={styles.property}>
-                <span>Priority</span>
-                <select
-                  className={styles.input}
-                  value={selectedItem.priority}
-                  onChange={(event) => handlePriorityChange(selectedItem.id, event.target.value)}
-                  disabled={!canEdit}
-                >
-                  <option value="NONE">NONE</option>
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="URGENT">URGENT</option>
-                </select>
-              </label>
-
-              <div className={styles.property}>
-                <span>Assignee</span>
-                <strong>{resolveUser(selectedItem.assigneeId)}</strong>
-              </div>
-            </div>
-
-            <div className={styles.section}>
-              <h4>Description</h4>
-              <div
-                className={styles.description}
-                dangerouslySetInnerHTML={{ __html: selectedItem.descriptionHtml || '<p>No description yet.</p>' }}
-              />
-            </div>
-
-            <div className={styles.section}>
-              <h4>Activity</h4>
-              <ul className={styles.activity}>
-                {(selectedItem.activities || [])
-                  .slice()
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                  .map((activity) => (
-                    <li key={activity.id}>
-                      <strong>{activity.type}</strong>
-                      {activity.message && <p>{activity.message}</p>}
-                      {activity.html && <div dangerouslySetInnerHTML={{ __html: activity.html }} />}
-                      <span>{`${resolveUser(activity.createdBy)} • ${formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}`}</span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-
-            <form className={styles.commentBox} onSubmit={handleCommentSubmit}>
-              <div className={styles.toolbarShell}>
-                <div className={styles.toolbarLeft}>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('bold')}>
-                    <FiBold />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('italic')}>
-                    <FiItalic />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('underline')}>
-                    <FiUnderline />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('strikeThrough')}>
-                    <FiCircle />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyLeft')}>
-                    <FiAlignLeft />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyCenter')}>
-                    <FiAlignCenter />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyRight')}>
-                    <FiAlignRight />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('insertOrderedList')}>
-                    1.
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('insertUnorderedList')}>
-                    <FiList />
-                  </button>
-                  <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('formatBlock', 'pre')}>
-                    <FiCode />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    onClick={() => {
-                      const url = window.prompt('Enter image URL')
-                      if (url) {
-                        runCommentCommand('insertImage', url)
-                      }
-                    }}
-                  >
-                    <FiImage />
-                  </button>
-                  <button type="button" className={styles.iconButton}>
-                    <FiPaperclip />
-                  </button>
+          ) : (
+            <>
+              <div className={styles.detailHeader}>
+                <div className={styles.ticketChip}>
+                  <span>{selectedItem.id}</span>
+                  <strong>{selectedItem.title}</strong>
                 </div>
-                <button className={styles.primaryButton} type="submit">
-                  Comment
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => setIsDetailOpen(false)}
+                >
+                  <FiX />
                 </button>
               </div>
-              <div
-                ref={commentEditorRef}
-                className={styles.commentEditor}
-                contentEditable={canAddComment}
-                suppressContentEditableWarning
-                onInput={(event) => setCommentHtml(event.currentTarget.innerHTML)}
-                data-placeholder="Add comment"
-              />
-            </form>
-          </>
-        )}
-      </aside>
+
+              <p className={styles.detailSubtitle}>{project.name}</p>
+
+              <div className={styles.properties}>
+                <label className={styles.property}>
+                  <span>State</span>
+                  <select
+                    className={styles.input}
+                    value={selectedItem.state}
+                    onChange={(event) => handleMoveStatus(selectedItem.id, event.target.value)}
+                    disabled={!canMove}
+                  >
+                    {statesOrder.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className={styles.property}>
+                  <span>Priority</span>
+                  <select
+                    className={styles.input}
+                    value={selectedItem.priority}
+                    onChange={(event) => handlePriorityChange(selectedItem.id, event.target.value)}
+                    disabled={!canEdit}
+                  >
+                    <option value="NONE">NONE</option>
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                  </select>
+                </label>
+
+                <div className={styles.property}>
+                  <span>Assignee</span>
+                  <strong>{resolveUser(selectedItem.assigneeId)}</strong>
+                </div>
+                <div className={styles.property}>
+                  <span>Created By</span>
+                  <strong>{resolveUser(selectedItem.createdBy)}</strong>
+                </div>
+                <div className={styles.property}>
+                  <span>Start Date</span>
+                  <strong>{selectedItem.startDate || 'Not set'}</strong>
+                </div>
+                <div className={styles.property}>
+                  <span>Due Date</span>
+                  <strong>{selectedItem.dueDate || 'Not set'}</strong>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <h4>Description</h4>
+                <div
+                  className={styles.description}
+                  dangerouslySetInnerHTML={{ __html: selectedItem.descriptionHtml || '<p>No description yet.</p>' }}
+                />
+              </div>
+
+              <div className={styles.section}>
+                <h4>Activity</h4>
+                <ul className={styles.activity}>
+                  {(selectedItem.activities || [])
+                    .slice()
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((activity) => (
+                      <li key={activity.id}>
+                        <strong>{activity.type}</strong>
+                        {activity.message && <p>{activity.message}</p>}
+                        {activity.html && <div dangerouslySetInnerHTML={{ __html: activity.html }} />}
+                        <span>{`${resolveUser(activity.createdBy)} | ${formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}`}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+
+              <form className={styles.commentBox} onSubmit={handleCommentSubmit}>
+                <div className={styles.toolbarShell}>
+                  <div className={styles.toolbarLeft}>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('bold')}>
+                      <FiBold />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('italic')}>
+                      <FiItalic />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('underline')}>
+                      <FiUnderline />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('strikeThrough')}>
+                      <FiCircle />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyLeft')}>
+                      <FiAlignLeft />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyCenter')}>
+                      <FiAlignCenter />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('justifyRight')}>
+                      <FiAlignRight />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('insertOrderedList')}>
+                      1.
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('insertUnorderedList')}>
+                      <FiList />
+                    </button>
+                    <button type="button" className={styles.iconButton} onClick={() => runCommentCommand('formatBlock', 'pre')}>
+                      <FiCode />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() => {
+                        const url = window.prompt('Enter image URL')
+                        if (url) {
+                          runCommentCommand('insertImage', url)
+                        }
+                      }}
+                    >
+                      <FiImage />
+                    </button>
+                    <button type="button" className={styles.iconButton}>
+                      <FiPaperclip />
+                    </button>
+                  </div>
+                  <button className={styles.primaryButton} type="submit">
+                    Comment
+                  </button>
+                </div>
+                <div
+                  ref={commentEditorRef}
+                  className={styles.commentEditor}
+                  contentEditable={canAddComment}
+                  suppressContentEditableWarning
+                  onInput={(event) => setCommentHtml(event.currentTarget.innerHTML)}
+                  data-placeholder="Add comment"
+                />
+              </form>
+            </>
+          )}
+          </aside>
+        </>
+      )}
     </section>
   )
 }
