@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FiLogOut, FiMoon, FiPlus, FiSun } from 'react-icons/fi'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import styles from './AppLayout.module.css'
 import { useAuthStore } from '../stores/authStore'
@@ -42,6 +42,9 @@ export default function AppLayout() {
   const logout = useAuthStore((state) => state.logout)
   const users = useUsersStore((state) => state.listUsers())
   const createWorkItem = useWorkItemsStore((state) => state.create)
+  const descriptionEditorRef = useRef(null)
+  const imageInputRef = useRef(null)
+  const attachmentInputRef = useRef(null)
   const canViewUserManagement = canManageUsers(currentUser)
   const canCreateTicket = inProjectRoute && canEditTicket(currentUser)
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
@@ -71,12 +74,128 @@ export default function AppLayout() {
       assigneeId: '',
       startDate: '',
       dueDate: '',
+      descriptionHtml: '',
+      attachments: [],
     })
     setIsTicketModalOpen(true)
   }
 
   function closeTicketModal() {
     setIsTicketModalOpen(false)
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Failed to read file.'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function runEditorCommand(command, value = null) {
+    if (!descriptionEditorRef.current) {
+      return
+    }
+
+    descriptionEditorRef.current.focus()
+    document.execCommand(command, false, value)
+    setNewTicket((prev) => ({
+      ...prev,
+      descriptionHtml: descriptionEditorRef.current?.innerHTML || '',
+    }))
+  }
+
+  function handleFontSizeChange(size) {
+    const map = {
+      small: '2',
+      normal: '3',
+      large: '5',
+    }
+
+    runEditorCommand('fontSize', map[size] || '3')
+  }
+
+  function handleInsertImageUrl() {
+    const imageUrl = window.prompt('Enter image URL')
+    if (!imageUrl) {
+      return
+    }
+
+    runEditorCommand('insertImage', imageUrl)
+  }
+
+  async function handleUploadInlineImage(event) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.')
+      return
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      runEditorCommand('insertImage', String(dataUrl))
+      setNewTicket((prev) => ({
+        ...prev,
+        attachments: [
+          ...prev.attachments,
+          {
+            name: file.name,
+            type: file.type,
+            dataUrl: String(dataUrl),
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.id || '',
+          },
+        ],
+      }))
+    } catch (error) {
+      toast.error(error.message || 'Unable to upload image.')
+    } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
+    }
+  }
+
+  async function handleUploadAttachment(event) {
+    const files = Array.from(event.target.files || [])
+    if (files.length === 0) {
+      return
+    }
+
+    try {
+      const nextAttachments = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          dataUrl: String(await readFileAsDataUrl(file)),
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser?.id || '',
+        })),
+      )
+      setNewTicket((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...nextAttachments],
+      }))
+      toast.success('Attachment(s) added.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to upload attachments.')
+    } finally {
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = ''
+      }
+    }
+  }
+
+  function handleRemoveAttachment(index) {
+    setNewTicket((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index),
+    }))
   }
 
   function handleCreateTicket(event) {
@@ -91,16 +210,16 @@ export default function AppLayout() {
         projectId,
         payload: {
           title: newTicket.title,
+          descriptionHtml: newTicket.descriptionHtml,
           state: newTicket.state,
           priority: newTicket.priority,
           assigneeId: newTicket.assigneeId || null,
           startDate: newTicket.startDate || null,
           dueDate: newTicket.dueDate || null,
-          descriptionHtml: '',
           labels: [],
           estimate: null,
           moduleId: null,
-          attachments: [],
+          attachments: newTicket.attachments,
           subItemIds: [],
           activities: [],
         },
@@ -233,6 +352,95 @@ export default function AppLayout() {
                 />
               </label>
 
+              <div className={styles.editorToolbar}>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('bold')}>
+                  B
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('italic')}>
+                  I
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('underline')}>
+                  U
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('strikeThrough')}>
+                  S
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyLeft')}>
+                  Left
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyCenter')}>
+                  Center
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('justifyRight')}>
+                  Right
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('insertOrderedList')}>
+                  OL
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('insertUnorderedList')}>
+                  UL
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
+                  Quote
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => runEditorCommand('formatBlock', 'pre')}>
+                  Code
+                </button>
+                <select className={styles.ticketInput} onChange={(event) => handleFontSizeChange(event.target.value)} defaultValue="normal">
+                  <option value="small">Small</option>
+                  <option value="normal">Normal</option>
+                  <option value="large">Large</option>
+                </select>
+                <button type="button" className={styles.iconButton} onClick={handleInsertImageUrl}>
+                  Img URL
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => imageInputRef.current?.click()}>
+                  Img Upload
+                </button>
+                <button type="button" className={styles.iconButton} onClick={() => attachmentInputRef.current?.click()}>
+                  Attach
+                </button>
+              </div>
+              <div
+                ref={descriptionEditorRef}
+                className={styles.richEditor}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(event) =>
+                  setNewTicket((prev) => ({ ...prev, descriptionHtml: event.currentTarget.innerHTML }))
+                }
+              />
+              <input
+                ref={imageInputRef}
+                className={styles.hiddenFileInput}
+                type="file"
+                accept="image/*"
+                onChange={handleUploadInlineImage}
+              />
+              <input
+                ref={attachmentInputRef}
+                className={styles.hiddenFileInput}
+                type="file"
+                multiple
+                onChange={handleUploadAttachment}
+              />
+              {newTicket.attachments.length > 0 && (
+                <ul className={styles.attachmentList}>
+                  {newTicket.attachments.map((attachment, index) => (
+                    <li key={`${attachment.name}-${index}`} className={styles.attachmentItem}>
+                      <span>{attachment.name}</span>
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        onClick={() => handleRemoveAttachment(index)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               <div className={styles.ticketGrid}>
                 <label className={styles.ticketLabel}>
                   State
@@ -298,7 +506,7 @@ export default function AppLayout() {
                 </label>
 
                 <label className={styles.ticketLabel}>
-                  Due Date
+                  Deadline
                   <input
                     className={styles.ticketInput}
                     type="date"

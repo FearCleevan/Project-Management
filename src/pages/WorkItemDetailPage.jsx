@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -19,6 +19,7 @@ const EMPTY_FORM = {
   startDate: '',
   dueDate: '',
   estimate: '',
+  attachments: [],
 }
 
 export default function WorkItemDetailPage() {
@@ -33,6 +34,9 @@ export default function WorkItemDetailPage() {
   const addComment = useWorkItemsStore((state) => state.addComment)
   const [form, setForm] = useState(EMPTY_FORM)
   const [commentHtml, setCommentHtml] = useState('')
+  const [fontSize, setFontSize] = useState('normal')
+  const imageInputRef = useRef(null)
+  const attachmentInputRef = useRef(null)
 
   const canEditFields = canEditTicket(currentUser)
   const canMoveStatus = canMoveTicket(currentUser)
@@ -61,11 +65,119 @@ export default function WorkItemDetailPage() {
       startDate: item.startDate || '',
       dueDate: item.dueDate || '',
       estimate: item.estimate ?? '',
+      attachments: item.attachments || [],
     })
   }, [item])
 
   function resolveUserName(userId) {
     return users.find((user) => user.id === userId)?.name || userId || 'Unknown'
+  }
+
+  function runEditorCommand(command, value = null) {
+    const editor = document.getElementById('ticket-detail-editor')
+    if (!editor || !canEditFields) {
+      return
+    }
+
+    editor.focus()
+    document.execCommand(command, false, value)
+    setForm((prev) => ({ ...prev, descriptionHtml: editor.innerHTML }))
+  }
+
+  function handleFontSizeChange(size) {
+    setFontSize(size)
+    const map = { small: '2', normal: '3', large: '5' }
+    runEditorCommand('fontSize', map[size] || '3')
+  }
+
+  function handleInsertImageUrl() {
+    const url = window.prompt('Enter image URL')
+    if (!url) {
+      return
+    }
+    runEditorCommand('insertImage', url)
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Failed to read file.'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleUploadInlineImage(event) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.')
+      return
+    }
+
+    try {
+      const dataUrl = String(await readFileAsDataUrl(file))
+      runEditorCommand('insertImage', dataUrl)
+      setForm((prev) => ({
+        ...prev,
+        attachments: [
+          ...prev.attachments,
+          {
+            name: file.name,
+            type: file.type,
+            dataUrl,
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.id || '',
+          },
+        ],
+      }))
+    } catch (error) {
+      toast.error(error.message || 'Unable to upload image.')
+    } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
+    }
+  }
+
+  async function handleUploadAttachment(event) {
+    const files = Array.from(event.target.files || [])
+    if (files.length === 0) {
+      return
+    }
+
+    try {
+      const attachments = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          dataUrl: String(await readFileAsDataUrl(file)),
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser?.id || '',
+        })),
+      )
+      setForm((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...attachments],
+      }))
+      toast.success('Attachment(s) added.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to upload attachments.')
+    } finally {
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = ''
+      }
+    }
+  }
+
+  function removeAttachment(index) {
+    setForm((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index),
+    }))
   }
 
   function handleSaveFields(event) {
@@ -86,6 +198,7 @@ export default function WorkItemDetailPage() {
           startDate: form.startDate || null,
           dueDate: form.dueDate || null,
           estimate: form.estimate === '' ? null : Number(form.estimate),
+          attachments: form.attachments,
         },
       })
       toast.success('Work item fields updated.')
@@ -250,7 +363,75 @@ export default function WorkItemDetailPage() {
 
         <label className={styles.label}>
           Description
+          {canEditFields && (
+            <div className={styles.toolbar}>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('bold')}>
+                B
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('italic')}>
+                I
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('underline')}>
+                U
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('strikeThrough')}>
+                S
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyLeft')}>
+                Left
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyCenter')}>
+                Center
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('justifyRight')}>
+                Right
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('insertOrderedList')}>
+                OL
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('insertUnorderedList')}>
+                UL
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('formatBlock', 'blockquote')}>
+                Quote
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => runEditorCommand('formatBlock', 'pre')}>
+                Code
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={handleInsertImageUrl}>
+                Img URL
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => imageInputRef.current?.click()}>
+                Img Upload
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={() => attachmentInputRef.current?.click()}>
+                Attach
+              </button>
+              <select className={styles.input} value={fontSize} onChange={(event) => handleFontSizeChange(event.target.value)}>
+                <option value="small">Small</option>
+                <option value="normal">Normal</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+          )}
+          <input
+            ref={imageInputRef}
+            className={styles.hiddenInput}
+            type="file"
+            accept="image/*"
+            onChange={handleUploadInlineImage}
+            disabled={!canEditFields}
+          />
+          <input
+            ref={attachmentInputRef}
+            className={styles.hiddenInput}
+            type="file"
+            multiple
+            onChange={handleUploadAttachment}
+            disabled={!canEditFields}
+          />
           <div
+            id="ticket-detail-editor"
             className={styles.editor}
             contentEditable={canEditFields}
             suppressContentEditableWarning
@@ -259,6 +440,26 @@ export default function WorkItemDetailPage() {
             }
             dangerouslySetInnerHTML={{ __html: form.descriptionHtml || '<p></p>' }}
           />
+          {form.attachments.length > 0 && (
+            <ul className={styles.attachmentList}>
+              {form.attachments.map((attachment, index) => (
+                <li key={`${attachment.name}-${index}`} className={styles.attachmentItem}>
+                  <a href={attachment.dataUrl} download={attachment.name}>
+                    {attachment.name}
+                  </a>
+                  {canEditFields && (
+                    <button
+                      type="button"
+                      className={styles.ghostButton}
+                      onClick={() => removeAttachment(index)}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </label>
 
         {canEditFields && (
